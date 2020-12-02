@@ -4,7 +4,7 @@ var ses = new aws.SES({
 });
 exports.handler = async (event) => {
     // TODO implement
-    var message = event.Records[0].Sns.Message;
+    var message = JSON.parse(event.Records[0].Sns.Message);
     console.log('Message received from SNS:', message);
     let recipient = message.username;
     console.log('recipient='+recipient);
