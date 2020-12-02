@@ -1,0 +1,52 @@
+# This is a basic workflow to help you get started with Actions
+name: Deploy and update the AWS Lambda Function
+
+env:
+  ARTIFACT_NAME: lambda_function_payload.zip
+  AWS_REGION: ${{ secrets.AWS_REGION }}
+
+# Controls when the action will run. Triggers the workflow on push or pull request
+# events but only for the master branch
+on:
+  push:
+    branches: [main]
+
+jobs:
+  serverless_lambda_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v1
+
+      - name: Build the artifacts
+        run: |
+          mkdir lambda_artifact
+          zip -r ${{ env.ARTIFACT_NAME }} ./
+          chmod +x ${{ env.ARTIFACT_NAME }}
+          pwd
+          ls -lart
+          mv ${{ env.ARTIFACT_NAME }} lambda_artifact/
+          ls -lart
+          pwd
+          cd lambda_artifact
+          pwd
+          ls -alrt
+          cd ..
+          ls -lart
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      # - name: Copy the lambda artifact to S3
+      #   run: |
+      #     aws s3 sync ./lambda_artifact s3://${{ secrets.S3_LAMBDA_BUCKET }}
+
+      - name: Update Lambda function
+        run: |
+          aws lambda update-function-code \
+          --function-name  csye6225_lambda \
+          --zip-file fileb://${{ env.ARTIFACT_NAME }} \
