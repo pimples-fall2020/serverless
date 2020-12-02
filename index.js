@@ -2,14 +2,44 @@ var aws = require("aws-sdk");
 var ses = new aws.SES({
     region: "us-east-1"
 });
+var ddb = new AWS.DynamoDB({
+    apiVersion: '2012-08-10'
+});
 exports.handler = async (event) => {
-    // TODO implement
+
     var message = JSON.parse(event.Records[0].Sns.Message);
+    var put_params = {
+        TableName: 'csye6225',
+        Item: {
+            'message': {
+                S: message.message
+            },
+            'question_id': {
+                S: message.question_id
+            },
+            'username': {
+                S: message.username
+            },
+            'answer_id': {
+                S: message.answer_id
+            },
+            'answer_text': {
+                S: message.answer_text
+            },
+            'question_link': {
+                S: message.question_link
+            },
+            'answer_link': {
+                S: message.answer_link
+            }
+
+        }
+    };
     console.log('Message received from SNS:', message);
     let recipient = message.username;
-    console.log('recipient='+recipient);
-    console.log("Message type:");
-    console.log(typeof message);
+    console.log('recipient=' + recipient);
+    // console.log("Message type:");
+    // console.log(typeof message);
     var params = {
         Destination: {
             ToAddresses: [recipient],
@@ -52,6 +82,25 @@ exports.handler = async (event) => {
         } else {
             console.log("Email sent from lambda!")
             console.log(data); // successful response
+
+            // Check if the email exists
+            ddb.getItem(put_params, function (err, data) {
+                if (err) {
+                    console.log("Item doesn't exist", err);
+                    //   Insert the item(message)
+                    // Call DynamoDB to add the item to the table
+                    put_params.Item['message_id'] = data.MessageId;
+                    ddb.putItem(put_params, function (error, resp_data) {
+                        if (error) {
+                            console.log("Error during put", error);
+                        } else {
+                            console.log("Item put successful", resp_data);
+                        }
+                    });
+                } else {
+                    console.log("Item found!", data.Item);
+                }
+            });
         }
         /*
         data = {
