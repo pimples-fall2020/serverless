@@ -7,6 +7,9 @@ exports.handler = async (event) => {
     var message = event.Records[0].Sns.Message;
     console.log('Message received from SNS:', message);
     let recipient = message.username;
+    console.log('recipient='+recipient);
+    console.log("Message type:");
+    console.log(typeof message);
     var params = {
         Destination: {
             ToAddresses: [recipient],
