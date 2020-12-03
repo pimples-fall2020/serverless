@@ -2,15 +2,22 @@ var aws = require("aws-sdk");
 var ses = new aws.SES({
     region: "us-east-1"
 });
-var ddb = new AWS.DynamoDB({
+var ddb = new aws.DynamoDB({
     apiVersion: '2012-08-10'
 });
+
+var docClient = new aws.DynamoDB.DocumentClient();
+
+
 exports.handler = async (event) => {
 
     var message = JSON.parse(event.Records[0].Sns.Message);
     var put_params = {
         TableName: 'csye6225',
         Item: {
+            'id': {
+                S: event.Records[0].Sns.MessageId
+            },
             'message': {
                 S: message.message
             },
@@ -35,6 +42,30 @@ exports.handler = async (event) => {
 
         }
     };
+
+
+    var scan_params = {
+        TableName: "csye6225",
+        // ProjectionExpression: "#yr, title, info.rating",        
+        ExpressionAttributeNames: {
+            "#msg": "message",
+            "#qid": "question_id",
+            "#usr": "username",
+            // "#aid": "answer_id",
+            "#ans": "answer_text",
+            "#qlink": "question_link"
+            // "#alink": "answer_link",
+        },
+        ExpressionAttributeValues: {
+            ':message': message.message,
+            ':question_id': message.question_id,
+            ':username': message.username,
+            ':answer_text': message.answer_text,
+            ':question_link': message.question_link
+        },
+        FilterExpression: "#msg = :message AND #qid = :question_id AND #usr = :username AND #ans = :answer_text AND #qlink = :question_link"
+    };
+
     console.log('Message received from SNS:', message);
     let recipient = message.username;
     console.log('recipient=' + recipient);
@@ -76,38 +107,42 @@ exports.handler = async (event) => {
         Source: "pimple.s@northeastern.edu",
     };
 
-    return ses.sendEmail(params, function (err, data) {
-        if (err) {
-            console.log(err, err.stack); // an error occurred 
-        } else {
-            console.log("Email sent from lambda!")
-            console.log(data); // successful response
+    var scanData;
+    try {
+        scanData = await scanDynamo(scan_params);
+        console.log("Query succeeded.");
+        console.log(scanData);
+    } catch (err) {
+        console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+    }
 
-            // Check if the email exists
-            ddb.getItem(put_params, function (err, data) {
-                if (err) {
-                    console.log("Item doesn't exist", err);
-                    //   Insert the item(message)
-                    // Call DynamoDB to add the item to the table
-                    put_params.Item['message_id'] = data.MessageId;
-                    ddb.putItem(put_params, function (error, resp_data) {
-                        if (error) {
-                            console.log("Error during put", error);
-                        } else {
-                            console.log("Item put successful", resp_data);
-                        }
-                    });
-                } else {
-                    console.log("Item found!", data.Item);
-                }
-            });
+    if (scanData.Count == 0) { //Non-duplicate
+        // send email
+        var emailResponse;
+        try {
+            emailResponse = await sendSESemail(params);
+            console.log("Email succeeded.");
+            console.log(emailResponse);
+        } catch (err) {
+            console.error("Unable to send email. Error:", JSON.stringify(err, null, 2));
         }
-        /*
-        data = {
-         MessageId: "EXAMPLE78603177f-7a5433e7-8edb-42ae-af10-f0181f34d6ee-000000"
-        }
-        */
-    }).promise();
+    } else {
+        // duplicate
+        // don't send email
+        console.log("Duplicate Entry found, not sending the email");
+    }
+
+    // Put email in dynamo regardless of duplication
+    var putData;
+    try {
+        putData = await putDynamo(put_params);
+        console.log("PUT Query succeeded.");
+        console.log(putData);
+    } catch (err) {
+        console.error("Unable to query. Error:", JSON.stringify(err, null, 2));
+    }
+
+
 
     // const response = {
     //     statusCode: 200,
@@ -120,3 +155,36 @@ exports.handler = async (event) => {
     // console.log(JSON.stringify(event));
     // return response;
 };
+
+function scanDynamo(params) {
+    return new Promise((resolve, reject) => {
+        docClient.scan(params, (err, data) => {
+            if (err)
+                reject(err);
+            else
+                resolve(data);
+        });
+    });
+}
+
+function putDynamo(params) {
+    return new Promise((resolve, reject) => {
+        ddb.putItem(params, (err, data) => {
+            if (err)
+                reject(err);
+            else
+                resolve(data);
+        });
+    });
+}
+
+function sendSESemail(params) {
+    return new Promise((resolve, reject) => {
+        ses.sendEmail(params, (err, data) => {
+            if (err)
+                reject(err);
+            else
+                resolve(data);
+        });
+    });
+}
