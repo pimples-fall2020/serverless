@@ -9,8 +9,8 @@ env:
 # events but only for the master branch
 on:
   workflow_dispatch:    
-  # push:
-    # branches: [main]
+  push:
+    branches: [main]
 
 jobs:
   serverless_lambda_deploy:
