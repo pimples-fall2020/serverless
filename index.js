@@ -25,7 +25,7 @@ exports.handler = async (event) => {
                 S: message.question_id
             },
             'username': {
-                S: message.username
+                S: message.ans_user
             },
             'answer_id': {
                 S: message.answer_id
@@ -59,7 +59,7 @@ exports.handler = async (event) => {
         ExpressionAttributeValues: {
             ':message': message.message,
             ':question_id': message.question_id,
-            ':username': message.username,
+            ':username': message.ans_user,
             ':answer_text': message.answer_text,
             ':question_link': message.question_link
         },
@@ -85,7 +85,7 @@ exports.handler = async (event) => {
                     Please find the details below: <br>
                     <ul>
                     <li>Question id: ${message.question_id}</li>
-                    <li>Username: ${message.username}</li>
+                    <li>Username (Answered By): ${message.ans_user}</li>
                     <li>Answer id: ${message.answer_id}</li>
                     <li>Answer text: ${message.answer_text}</li>
                     <li>Question link: ${message.question_link}</li>
@@ -104,7 +104,7 @@ exports.handler = async (event) => {
                 Data: "CSYE6225 Webapp Activity"
             },
         },
-        Source: "pimple.s@northeastern.edu",
+        Source: "webapp@prod.sanketpimple.me", 
     };
 
     var scanData;
